@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 
+using TodoApi.Models;
+
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace TodoApi.Controllers
@@ -11,36 +13,82 @@ namespace TodoApi.Controllers
     [Route("api/[controller]")]
     public class TodoController : Controller
     {
-        // GET api/values
+        private readonly ITodoRepository _todoRepository;
+
+        public TodoController(ITodoRepository todoRepository)
+        {
+            _todoRepository = todoRepository;
+        }
+
+        #region snippet_GetAll
         [HttpGet]
-        public IEnumerable<string> Get()
+        public IEnumerable<TodoItem> GetAll()
         {
-            return new string[] { "value1", "value2" };
+            return _todoRepository.GetAll();
         }
 
-        // GET api/values/5
-        [HttpGet("{id}")]
-        public string Get(int id)
+        [HttpGet("{id}", Name = "GetTodo")]
+        public IActionResult GetById(long id)
         {
-            return "value";
+            var item = _todoRepository.Find(id);
+            if (item == null)
+            {
+                return NotFound();
+            }
+            return new ObjectResult(item);
         }
-
-        // POST api/values
+        #endregion
+        #region snippet_Create
         [HttpPost]
-        public void Post([FromBody]string value)
+        public IActionResult Create([FromBody] TodoItem item)
         {
-        }
+            if (item == null)
+            {
+                return BadRequest();
+            }
 
-        // PUT api/values/5
+            _todoRepository.Add(item);
+
+            return CreatedAtRoute("GetTodo", new { id = item.Key }, item);
+        }
+        #endregion
+
+        #region snippet_Update
         [HttpPut("{id}")]
-        public void Put(int id, [FromBody]string value)
+        public IActionResult Update(long id, [FromBody] TodoItem item)
         {
-        }
+            if (item == null || item.Key != id)
+            {
+                return BadRequest();
+            }
 
-        // DELETE api/values/5
-        [HttpDelete("{id}")]
-        public void Delete(int id)
-        {
+            var todo = _todoRepository.Find(id);
+            if (todo == null)
+            {
+                return NotFound();
+            }
+
+            todo.IsComplete = item.IsComplete;
+            todo.Name = item.Name;
+
+            _todoRepository.Update(todo);
+            return new NoContentResult();
         }
+        #endregion
+
+        #region snippet_Delete
+        [HttpDelete("{id}")]
+        public IActionResult Delete(long id)
+        {
+            var todo = _todoRepository.Find(id);
+            if (todo == null)
+            {
+                return NotFound();
+            }
+
+            _todoRepository.Remove(id);
+            return new NoContentResult();
+        }
+        #endregion
     }
 }
